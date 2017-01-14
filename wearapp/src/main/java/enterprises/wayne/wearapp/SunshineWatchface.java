@@ -40,23 +40,16 @@ import java.util.Calendar;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
+import static android.R.attr.textSize;
+
 /**
- * Digital watch face with seconds. In ambient mode, the seconds aren't displayed. On devices with
- * low-bit ambient mode, the text is drawn without anti-aliasing in ambient mode.
+ * shows a digital watch and today's current weather
  */
 public class SunshineWatchface extends CanvasWatchFaceService {
     private static final Typeface NORMAL_TYPEFACE =
             Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL);
 
-    /**
-     * Update rate in milliseconds for interactive mode. We update once a second since seconds are
-     * displayed in interactive mode.
-     */
     private static final long INTERACTIVE_UPDATE_RATE_MS = TimeUnit.SECONDS.toMillis(1);
-
-    /**
-     * Handler message id for updating the time periodically in interactive mode.
-     */
     private static final int MSG_UPDATE_TIME = 0;
 
     @Override
@@ -88,7 +81,7 @@ public class SunshineWatchface extends CanvasWatchFaceService {
         final Handler mUpdateTimeHandler = new EngineHandler(this);
         boolean mRegisteredTimeZoneReceiver = false;
         Paint mBackgroundPaint;
-        Paint mTextPaintPrimary;
+        Paint mTextPaint;
         boolean mAmbient;
         Calendar mCalendar;
         final BroadcastReceiver mTimeZoneReceiver = new BroadcastReceiver() {
@@ -98,8 +91,6 @@ public class SunshineWatchface extends CanvasWatchFaceService {
                 invalidate();
             }
         };
-        float mXOffset;
-        float mYOffset;
 
         /**
          * Whether the display supports fewer bits for each color in ambient mode. When true, we
@@ -117,13 +108,13 @@ public class SunshineWatchface extends CanvasWatchFaceService {
                     .setShowSystemUiTime(false)
                     .build());
             Resources resources = SunshineWatchface.this.getResources();
-            mYOffset = resources.getDimension(R.dimen.digital_y_offset);
 
             mBackgroundPaint = new Paint();
             mBackgroundPaint.setColor(resources.getColor(R.color.background));
 
-            mTextPaintPrimary = new Paint();
-            mTextPaintPrimary = createTextPaint(resources.getColor(R.color.color_text));
+            mTextPaint = new Paint();
+            float textSize = resources.getDimension(R.dimen.text_size);
+            mTextPaint = createTextPaint(resources.getColor(R.color.color_text), textSize);
 
             mCalendar = Calendar.getInstance();
         }
@@ -134,12 +125,13 @@ public class SunshineWatchface extends CanvasWatchFaceService {
             super.onDestroy();
         }
 
-        private Paint createTextPaint(int textColor) {
+        private Paint createTextPaint(int textColor, float textSize) {
             Paint paint = new Paint();
             paint.setColor(textColor);
             paint.setTypeface(NORMAL_TYPEFACE);
             paint.setTextAlign(Paint.Align.CENTER);
             paint.setAntiAlias(true);
+            paint.setTextSize(textSize);
             return paint;
         }
 
@@ -182,16 +174,6 @@ public class SunshineWatchface extends CanvasWatchFaceService {
         @Override
         public void onApplyWindowInsets(WindowInsets insets) {
             super.onApplyWindowInsets(insets);
-
-            // Load resources that have alternate values for round watches.
-            Resources resources = SunshineWatchface.this.getResources();
-            boolean isRound = insets.isRound();
-            mXOffset = resources.getDimension(isRound
-                    ? R.dimen.digital_x_offset_round : R.dimen.digital_x_offset);
-            float textSize = resources.getDimension(isRound
-                    ? R.dimen.digital_text_size_round : R.dimen.digital_text_size);
-
-            mTextPaintPrimary.setTextSize(textSize);
         }
 
         @Override
@@ -212,7 +194,7 @@ public class SunshineWatchface extends CanvasWatchFaceService {
             if (mAmbient != inAmbientMode) {
                 mAmbient = inAmbientMode;
                 if (mLowBitAmbient) {
-                    mTextPaintPrimary.setAntiAlias(!inAmbientMode);
+                    mTextPaint.setAntiAlias(!inAmbientMode);
                 }
                 invalidate();
             }
@@ -224,9 +206,6 @@ public class SunshineWatchface extends CanvasWatchFaceService {
 
         @Override
         public void onDraw(Canvas canvas, Rect bounds) {
-            int width = (int) (canvas.getWidth() - mXOffset);
-            int height = (int) (canvas.getHeight() - mYOffset);
-
             // Draw the background.
             if (isInAmbientMode()) {
                 canvas.drawColor(Color.BLACK);
@@ -242,18 +221,18 @@ public class SunshineWatchface extends CanvasWatchFaceService {
                             mCalendar.get(Calendar.MINUTE));
             int xPositionTime = canvas.getWidth()  / 2;
             int yPositionTime = canvas.getHeight() / 2;
-            canvas.drawText(time, xPositionTime, yPositionTime, mTextPaintPrimary);
+            canvas.drawText(time, xPositionTime, yPositionTime, mTextPaint);
 
             // Draw high and low
             String high = "25°";
             int xPositionHigh = (int) (canvas.getWidth() * 1 / 3);
             int yPositionHigh = canvas.getHeight() * 3 / 4;
-            canvas.drawText(high, xPositionHigh, yPositionHigh, mTextPaintPrimary);
+            canvas.drawText(high, xPositionHigh, yPositionHigh, mTextPaint);
 
             String low = "18°";
             int xPositionLow = (int) (canvas.getWidth() * 2 / 3);
             int yPositionLow = yPositionHigh;
-            canvas.drawText(low, xPositionLow, yPositionLow, mTextPaintPrimary);
+            canvas.drawText(low, xPositionLow, yPositionLow, mTextPaint);
 
 
         }
