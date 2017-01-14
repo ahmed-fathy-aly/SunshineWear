@@ -26,14 +26,22 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.support.wearable.watchface.CanvasWatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
+import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.WindowInsets;
 
+
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.wearable.DataApi;
+import com.google.android.gms.wearable.DataEventBuffer;
+import com.google.android.gms.wearable.Wearable;
+import com.google.android.gms.wearable.WearableListenerService;
 
 import java.lang.ref.WeakReference;
 import java.util.Calendar;
@@ -41,6 +49,7 @@ import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
 import static android.R.attr.textSize;
+import static android.R.attr.thickness;
 
 /**
  * shows a digital watch and today's current weather
@@ -77,13 +86,16 @@ public class SunshineWatchface extends CanvasWatchFaceService {
         }
     }
 
-    private class Engine extends CanvasWatchFaceService.Engine {
+    private class Engine extends CanvasWatchFaceService.Engine implements DataListenerService.Listener {
         final Handler mUpdateTimeHandler = new EngineHandler(this);
         boolean mRegisteredTimeZoneReceiver = false;
         Paint mBackgroundPaint;
         Paint mTextPaint;
         boolean mAmbient;
         Calendar mCalendar;
+        private WeatherData mWeatherData;
+        DataListenerService mDataListenerService;
+
         final BroadcastReceiver mTimeZoneReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
@@ -97,7 +109,6 @@ public class SunshineWatchface extends CanvasWatchFaceService {
          * disable anti-aliasing in ambient mode.
          */
         boolean mLowBitAmbient;
-
         @Override
         public void onCreate(SurfaceHolder holder) {
             super.onCreate(holder);
@@ -117,6 +128,7 @@ public class SunshineWatchface extends CanvasWatchFaceService {
             mTextPaint = createTextPaint(resources.getColor(R.color.color_text), textSize);
 
             mCalendar = Calendar.getInstance();
+
         }
 
         @Override
@@ -139,14 +151,17 @@ public class SunshineWatchface extends CanvasWatchFaceService {
         public void onVisibilityChanged(boolean visible) {
             super.onVisibilityChanged(visible);
 
+            Log.e("Game", "onVisibilityChanged");
             if (visible) {
                 registerReceiver();
 
                 // Update time zone in case it changed while we weren't visible.
                 mCalendar.setTimeZone(TimeZone.getDefault());
                 invalidate();
+                DataListenerService.setListener(Engine.this);
             } else {
                 unregisterReceiver();
+                DataListenerService.setListener(null);
             }
 
             // Whether the timer should be running depends on whether we're visible (as well as
@@ -219,21 +234,23 @@ public class SunshineWatchface extends CanvasWatchFaceService {
             String time =
                     String.format("%02d:%02d", mCalendar.get(Calendar.HOUR),
                             mCalendar.get(Calendar.MINUTE));
-            int xPositionTime = canvas.getWidth()  / 2;
+            int xPositionTime = canvas.getWidth() / 2;
             int yPositionTime = canvas.getHeight() / 2;
             canvas.drawText(time, xPositionTime, yPositionTime, mTextPaint);
 
-            // Draw high and low
-            String high = "25°";
-            int xPositionHigh = (int) (canvas.getWidth() * 1 / 3);
-            int yPositionHigh = canvas.getHeight() * 3 / 4;
-            canvas.drawText(high, xPositionHigh, yPositionHigh, mTextPaint);
+            Drawable drawable = getResources().getDrawable(R.drawable.art_clear);
+            if (mWeatherData != null) {
+                // Draw high and low
+                String high = String.format("%d°", mWeatherData.getHigh());
+                int xPositionHigh = (int) (canvas.getWidth() * 1 / 3);
+                int yPositionHigh = canvas.getHeight() * 3 / 4;
+                canvas.drawText(high, xPositionHigh, yPositionHigh, mTextPaint);
 
-            String low = "18°";
-            int xPositionLow = (int) (canvas.getWidth() * 2 / 3);
-            int yPositionLow = yPositionHigh;
-            canvas.drawText(low, xPositionLow, yPositionLow, mTextPaint);
-
+                String low = String.format("%d°", mWeatherData.getLow());
+                int xPositionLow = (int) (canvas.getWidth() * 2 / 3);
+                int yPositionLow = yPositionHigh;
+                canvas.drawText(low, xPositionLow, yPositionLow, mTextPaint);
+            }
 
         }
 
@@ -267,6 +284,12 @@ public class SunshineWatchface extends CanvasWatchFaceService {
                         - (timeMs % INTERACTIVE_UPDATE_RATE_MS);
                 mUpdateTimeHandler.sendEmptyMessageDelayed(MSG_UPDATE_TIME, delayMs);
             }
+        }
+
+        @Override
+        public void onDataUpdate(WeatherData weatherData) {
+            Log.e("Game", "on data received in listener " + weatherData.getLow());
+            mWeatherData = weatherData;
         }
     }
 }
