@@ -88,7 +88,7 @@ public class SunshineWatchface extends CanvasWatchFaceService {
         final Handler mUpdateTimeHandler = new EngineHandler(this);
         boolean mRegisteredTimeZoneReceiver = false;
         Paint mBackgroundPaint;
-        Paint mTextPaint;
+        Paint mTextPaintPrimary;
         boolean mAmbient;
         Calendar mCalendar;
         final BroadcastReceiver mTimeZoneReceiver = new BroadcastReceiver() {
@@ -122,8 +122,8 @@ public class SunshineWatchface extends CanvasWatchFaceService {
             mBackgroundPaint = new Paint();
             mBackgroundPaint.setColor(resources.getColor(R.color.background));
 
-            mTextPaint = new Paint();
-            mTextPaint = createTextPaint(resources.getColor(R.color.digital_text));
+            mTextPaintPrimary = new Paint();
+            mTextPaintPrimary = createTextPaint(resources.getColor(R.color.color_text));
 
             mCalendar = Calendar.getInstance();
         }
@@ -138,6 +138,7 @@ public class SunshineWatchface extends CanvasWatchFaceService {
             Paint paint = new Paint();
             paint.setColor(textColor);
             paint.setTypeface(NORMAL_TYPEFACE);
+            paint.setTextAlign(Paint.Align.CENTER);
             paint.setAntiAlias(true);
             return paint;
         }
@@ -190,7 +191,7 @@ public class SunshineWatchface extends CanvasWatchFaceService {
             float textSize = resources.getDimension(isRound
                     ? R.dimen.digital_text_size_round : R.dimen.digital_text_size);
 
-            mTextPaint.setTextSize(textSize);
+            mTextPaintPrimary.setTextSize(textSize);
         }
 
         @Override
@@ -211,7 +212,7 @@ public class SunshineWatchface extends CanvasWatchFaceService {
             if (mAmbient != inAmbientMode) {
                 mAmbient = inAmbientMode;
                 if (mLowBitAmbient) {
-                    mTextPaint.setAntiAlias(!inAmbientMode);
+                    mTextPaintPrimary.setAntiAlias(!inAmbientMode);
                 }
                 invalidate();
             }
@@ -223,6 +224,9 @@ public class SunshineWatchface extends CanvasWatchFaceService {
 
         @Override
         public void onDraw(Canvas canvas, Rect bounds) {
+            int width = (int) (canvas.getWidth() - mXOffset);
+            int height = (int) (canvas.getHeight() - mYOffset);
+
             // Draw the background.
             if (isInAmbientMode()) {
                 canvas.drawColor(Color.BLACK);
@@ -230,16 +234,28 @@ public class SunshineWatchface extends CanvasWatchFaceService {
                 canvas.drawRect(0, 0, bounds.width(), bounds.height(), mBackgroundPaint);
             }
 
-            // Draw H:MM in ambient mode or H:MM:SS in interactive mode.
+            // Draw HH:MM
             long now = System.currentTimeMillis();
             mCalendar.setTimeInMillis(now);
+            String time =
+                    String.format("%02d:%02d", mCalendar.get(Calendar.HOUR),
+                            mCalendar.get(Calendar.MINUTE));
+            int xPositionTime = canvas.getWidth()  / 2;
+            int yPositionTime = canvas.getHeight() / 2;
+            canvas.drawText(time, xPositionTime, yPositionTime, mTextPaintPrimary);
 
-            String text = mAmbient
-                    ? String.format("%d:%02d", mCalendar.get(Calendar.HOUR),
-                    mCalendar.get(Calendar.MINUTE))
-                    : String.format("%d:%02d:%02d", mCalendar.get(Calendar.HOUR),
-                    mCalendar.get(Calendar.MINUTE), mCalendar.get(Calendar.SECOND));
-            canvas.drawText(text, mXOffset, mYOffset, mTextPaint);
+            // Draw high and low
+            String high = "25°";
+            int xPositionHigh = (int) (canvas.getWidth() * 1 / 3);
+            int yPositionHigh = canvas.getHeight() * 3 / 4;
+            canvas.drawText(high, xPositionHigh, yPositionHigh, mTextPaintPrimary);
+
+            String low = "18°";
+            int xPositionLow = (int) (canvas.getWidth() * 2 / 3);
+            int yPositionLow = yPositionHigh;
+            canvas.drawText(low, xPositionLow, yPositionLow, mTextPaintPrimary);
+
+
         }
 
         /**
