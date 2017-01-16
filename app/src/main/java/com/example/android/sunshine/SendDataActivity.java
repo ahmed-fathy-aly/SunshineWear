@@ -1,12 +1,20 @@
 package com.example.android.sunshine;
 
+import android.content.Context;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.VectorDrawable;
+import android.os.Build;
 import android.support.annotation.Nullable;
+import android.support.v4.graphics.drawable.DrawableCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.AppCompatDrawableManager;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -23,6 +31,7 @@ import java.util.Random;
 
 import static android.R.attr.bitmap;
 import static android.R.attr.button;
+import static android.R.attr.x;
 import static android.graphics.BitmapFactory.decodeResource;
 
 public class SendDataActivity extends AppCompatActivity {
@@ -73,17 +82,30 @@ public class SendDataActivity extends AppCompatActivity {
         int num = new Random().nextInt(100);
         map.putInt("low", num);
         map.putInt("high", num + 5);
+        Bitmap bitmap = getBitmapFromVectorDrawable(this, R.drawable.art_clear);
+        map.putAsset("icon", createAssetFromBitmap(bitmap));
+        Wearable.DataApi.putDataItem(mGoogleApiClient, putRequest.asPutDataRequest());
+        Log.e("Game", "sent num " + num + "and bitmap " + bitmap.getWidth() + "*" + bitmap.getHeight());
+    }
 
+    public static Bitmap getBitmapFromVectorDrawable(Context context, int drawableId) {
+        Drawable drawable = AppCompatDrawableManager.get().getDrawable(context, drawableId);
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+            drawable = (DrawableCompat.wrap(drawable)).mutate();
+        }
 
-        //Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.art_clear);
-        //map.putAsset("icon", createAssetFromBitmap(bitmap));
-        Wearable.DataApi.putDataItem(mGoogleApiClient,  putRequest.asPutDataRequest());
-        Log.e("Game", "sent num " + num);
+        Bitmap bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth(),
+                drawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+        drawable.draw(canvas);
+
+        return bitmap;
     }
 
     private Asset createAssetFromBitmap(Bitmap bitmap) {
         final ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 80, byteStream);
+        bitmap.compress(Bitmap.CompressFormat.PNG, 80, byteStream);
         return Asset.createFromBytes(byteStream.toByteArray());
     }
 }

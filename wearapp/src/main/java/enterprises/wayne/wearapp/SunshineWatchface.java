@@ -37,19 +37,10 @@ import android.view.SurfaceHolder;
 import android.view.WindowInsets;
 
 
-import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.wearable.DataApi;
-import com.google.android.gms.wearable.DataEventBuffer;
-import com.google.android.gms.wearable.Wearable;
-import com.google.android.gms.wearable.WearableListenerService;
-
 import java.lang.ref.WeakReference;
 import java.util.Calendar;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
-
-import static android.R.attr.textSize;
-import static android.R.attr.thickness;
 
 /**
  * shows a digital watch and today's current weather
@@ -89,7 +80,7 @@ public class SunshineWatchface extends CanvasWatchFaceService {
     private class Engine extends CanvasWatchFaceService.Engine implements DataListenerService.Listener {
         final Handler mUpdateTimeHandler = new EngineHandler(this);
         boolean mRegisteredTimeZoneReceiver = false;
-        Paint mBackgroundPaint;
+        Paint mIconPaint;
         Paint mTextPaint;
         boolean mAmbient;
         Calendar mCalendar;
@@ -109,6 +100,7 @@ public class SunshineWatchface extends CanvasWatchFaceService {
          * disable anti-aliasing in ambient mode.
          */
         boolean mLowBitAmbient;
+
         @Override
         public void onCreate(SurfaceHolder holder) {
             super.onCreate(holder);
@@ -120,9 +112,8 @@ public class SunshineWatchface extends CanvasWatchFaceService {
                     .build());
             Resources resources = SunshineWatchface.this.getResources();
 
-            mBackgroundPaint = new Paint();
-            mBackgroundPaint.setColor(resources.getColor(R.color.background));
-
+            mIconPaint = new Paint();
+            mIconPaint.setColor(resources.getColor(R.color.background));
             mTextPaint = new Paint();
             float textSize = resources.getDimension(R.dimen.text_size);
             mTextPaint = createTextPaint(resources.getColor(R.color.color_text), textSize);
@@ -225,7 +216,7 @@ public class SunshineWatchface extends CanvasWatchFaceService {
             if (isInAmbientMode()) {
                 canvas.drawColor(Color.BLACK);
             } else {
-                canvas.drawRect(0, 0, bounds.width(), bounds.height(), mBackgroundPaint);
+                canvas.drawRect(0, 0, bounds.width(), bounds.height(), mIconPaint);
             }
 
             // Draw HH:MM
@@ -240,16 +231,24 @@ public class SunshineWatchface extends CanvasWatchFaceService {
 
             Drawable drawable = getResources().getDrawable(R.drawable.art_clear);
             if (mWeatherData != null) {
-                // Draw high and low
+                // low temp
                 String high = String.format("%d°", mWeatherData.getHigh());
-                int xPositionHigh = (int) (canvas.getWidth() * 1 / 3);
+                int xPositionHigh = canvas.getWidth() * 1 / 3;
                 int yPositionHigh = canvas.getHeight() * 3 / 4;
                 canvas.drawText(high, xPositionHigh, yPositionHigh, mTextPaint);
 
+                // high temp
                 String low = String.format("%d°", mWeatherData.getLow());
-                int xPositionLow = (int) (canvas.getWidth() * 2 / 3);
+                int xPositionLow = canvas.getWidth() * 2 / 3;
                 int yPositionLow = yPositionHigh;
                 canvas.drawText(low, xPositionLow, yPositionLow, mTextPaint);
+
+                if (mWeatherData.getIcon() != null) {
+                    int xPositionIcon = (canvas.getWidth() / 2) - (mWeatherData.getIcon().getWidth() / 2);
+                    int yPositionIcon = (canvas.getHeight() / 4) - (mWeatherData.getIcon().getHeight() / 2);
+                    canvas.drawBitmap(mWeatherData.getIcon(),
+                            xPositionIcon, yPositionIcon, mIconPaint);
+                }
             }
 
         }
